@@ -1,0 +1,508 @@
+---
+title: "CO2 Emissions"
+author: Khanh Ngo
+output: html_document
+---
+
+## Introduction
+
+In this lab we will learn how to use R to graph and summarize a data set.
+
+The data set consists of values of CO$_2$ emissions (in metric tons/person) for different countries in the years between 1960 and 2014.
+
+Your goal is to be able to make plots and compute numerical summaries that will help you describe the distribution of CO$_2$ emissions among these countries.
+
+
+
+## Data science methodology
+
+**1. Problem understanding**
+**2. Analytic approach**
+3. Data collection
+4. Data preparation
+**5. Visualize**
+6. Model
+**7. Evaluation**
+**8. Communicate**
+
+
+## The problem
+
+1. How are CO$_2$ emissions (in metric tons/person) distributed over different countries in 2010? Are there any countries with very high emissions?
+
+2. How do CO$_2$ emissions in 2010 compare to CO$_2$ emissions in 1960?
+
+
+## Analytic approach
+
+We will use graphs and numerical summaries to characterize the distribution of CO$_2$ emissions in 2010 and to compare distributions between 1960 and 2010.
+
+
+## 1. Import libraries
+
+This lab will use the library ``ggplot2`` to explore our data. 
+
+```{r}
+
+library(tidyverse)
+
+```
+
+## 2. Load the data
+
+You should have a csv file called CO2EmissionsCountries1960to2014.csv saved somewhere where you can access the file.
+
+To load the file, run the cell below. You will need to change the path to the file.
+
+```{r}
+
+df = read.csv('~/my-portfolio/co2-emissions/CO2EmissionsCountries1960to2014.csv')
+
+```
+
+## 3. Look at the raw data
+
+It is often useful to look at the head of the data frame. This will show you the first few values from each column of the data frame. This helps to give you a sense of what variables are present in the data set and what kinds of values they take on.
+
+```{r}
+
+head(df)
+
+```
+
+
+### **Question 3.1**. Use ``names(df)`` to determine the variables in your data set.
+
+```{r}
+
+names(df)
+
+```
+
+
+The columns of interest in the data set are the Country Name, Country Code (which is redundant with Country Name), and the CO$_2$ emissions for many years. The indicator name tells you what is measured in each year.
+
+### **Question 3.2**. For each variable, determine whether it is numerical or categorical.
+
+We can use the ``head`` of the data frame to determine the types of variables by looking at the label beneath each name. 
+
+```{r}
+
+head(df)
+
+```
+
+For example, ``Country Name`` is a factor variable, indicted by ``<fct>``.
+
+We can also use the ``str`` function to determine the types of variables:
+
+```{r}
+
+str(df)
+
+```
+
+Most significantly, CO$_2$ emission at each year is a number and it makes sense to do arithmetic with the values, so it is a numerical variable. 
+
+### **Question 3.3**. Look at the raw CO$_2$ data for all countries in 2010. Can you tell from looking at the table of data values what the shape of the CO$_2$ emission distribution looks like?
+
+
+```{r}
+
+#To look at the entire data set, we can type the name of our data frame.
+#To look at one column, type df$Name of the column
+
+df$X2010
+
+```
+
+If we attach the data frame, then we can call the variables directly.
+
+```{r}
+
+attach(df)
+
+X2010
+```
+
+```{r}
+
+```
+
+
+
+
+
+It is difficult to understand the shape of the distribution just by looking at the data table. There are clearly a few large values and many smaller values, but the exact shape of the distribution is not easy to visualize. 
+
+We can do better using graphs to visualize the distribution.
+
+## 4. Graphing the distribution
+
+### **Question 4.1**. Why is a histogram an appropriate graph to use to visualize the CO$_2$ distribution?
+
+CO$_2$ emission is a continous numerical variable and our data set is not small (n = 218), so a histogram is an appropriate graph to use.
+
+
+### **Question 4.2**. Construct a histogram of the CO$_2$ emission data from 2010 using 20 bins and describe the distribution.
+
+Your histogram should have the axes labeled.
+
+Be sure to describe all relevant features of the histogram.
+
+We can use the ``hist`` function from the base R package
+
+```{r}
+
+hist(X2010, xlab = "CO_2 Emissions (metric tons/person)",main = " ")
+
+```
+
+We can also use ``ggplot2`` to make the histogram. This has more complicated syntax, but it can make very nice graphs.
+
+```{r}
+
+ggplot(df, aes(x = X2010)) + 
+  geom_histogram(boundary = 0) + 
+  xlab("CO_2 Emissions (metric tons/person)") + 
+  theme_bw()
+
+```
+
+We can also plot the histogram on a density scale:
+
+```{r}
+
+hist(X2010, freq = FALSE, xlab = "CO_2 Emissions (metric tons/person)", main = " ")
+
+```
+
+
+```{r}
+
+ggplot(df, aes(x = X2010, y = ..density..)) + 
+  geom_histogram(boundary = 0) + 
+  xlab("CO_2 Emissions (metric tons/person)") + 
+  theme_bw()
+
+```
+
+The histogram is skewed to the right, or positively skewed. This is consistent with our initial impression that there are many small values and a few large values of emissions.
+
+There are several countries at the upper end of the range of emissions that are potential outliers.
+
+The distribution has one main peak and is therefore unimodal.
+
+
+### **Question 4.3**. Construct histograms of the CO$_2$ emission data in 2010 with different numbers of bins. Does your impression of the distribution change with different numbers of bins?
+
+Try changing the number of breaks first.
+```{r}
+
+#Set up the plot with 4 panels
+par(mfrow = c(2,2))
+
+#Use 5 bins
+hist(X2010, breaks = 5, xlab = "CO_2 Emissions (metric tons/person)", main = "5 bins")
+
+#Use 10 bins
+hist(X2010, breaks = 10, xlab = "CO_2 Emissions (metric tons/person)", main = "10 bins")
+
+#Use 15 bins
+hist(X2010, breaks = 15, xlab = "CO_2 Emissions (metric tons/person)", main = "15 bins")
+
+#Use 20 bins
+hist(X2010, breaks = 20, xlab = "CO_2 Emissions (metric tons/person)", main = "20 bins")
+
+
+```
+
+Note that the histograms with 15 and 20 breaks are the same. This is due to the way that the ``hist`` function treats the argument ``breaks`` when you only give a number. It may override your suggestion to give you a better graph.
+
+We can control the number of bins by letting ``breaks`` be a vector of the breakpoints.
+
+First determine the minimum and maximum values of CO$_2$ emissions in 2010 so that we don't miss any data points.
+
+```{r}
+
+summary(X2010)
+
+```
+
+
+```{r}
+
+#Set up the plot with 4 panels
+par(mfrow = c(2,2))
+
+#Use 5 bins
+hist(X2010, breaks = seq(0,41,length.out = 6), xlab = "CO_2 Emissions (metric tons/person)", main = "5 bins")
+
+#Use 10 bins
+hist(X2010, breaks = seq(0,41,length.out = 11), xlab = "CO_2 Emissions (metric tons/person)", main = "10 bins")
+
+#Use 15 bins
+hist(X2010, breaks = seq(0,41,length.out = 16), xlab = "CO_2 Emissions (metric tons/person)", main = "15 bins")
+
+#Use 20 bins
+hist(X2010, breaks = seq(0,41,length.out = 21), xlab = "CO_2 Emissions (metric tons/person)", main = "20 bins")
+
+
+```
+
+
+The distribution looks similar using histograms with 10, 15, and 20 bins. The distribution is skewed to the right and there are several potential outliers. The histogram with 5 bins does not let us see some of the detail.
+
+## 5. Numerical summaries
+
+### **Question 5.1**. Review the definitions of the sample mean, median, standard deviation, interquartile range, and 5-number summary of a data set.
+
+Suppose we have a data set consisting of $n$ values $x_1, x_2, \ldots, x_n$.
+
+**Measure of center**
+
+The sample mean is $\displaystyle \bar{x} = \frac{1}{n}\sum_{i = 1}^n x_i$.
+
+The sample median $\tilde{x}$ is the $50^{th}$ percentile. If $n$ is odd, then $\tilde{x}$ is the middle value after the values are ordered. If $n$ is even, then $\tilde{x}$ is the average of the two middle values after the values are ordered.
+
+**Measures of spread**
+
+The sample standard deviation is $\displaystyle s = \sqrt{\frac{1}{n - 1}\sum_{i = 1}^n (x_i - \bar{x})^2}$.
+
+The first quartile is the $25{th}$ percentile and the third quartile is the $75{th}$ percentile.  The interquartile range is the difference between the $75{th}$ percentile and $25{th}$ percentile.
+
+**5-number summary**
+
+The 5-number summary consists of the 5 numbers: minimum, first quartile, median, third quartile, maximum.
+
+
+### **Question 5.2**. Use the ``summary()`` function to compute the sample mean, median, standard deviation, interquartile range, and 5-number summary of the CO$_2$ data set.
+
+
+```{r}
+
+summary(df)
+
+```
+
+Compute the standard deviations
+```{r}
+
+apply(df,2,sd,na.rm = TRUE)
+
+```
+
+Compute the interquartile ranges
+
+```{r}
+
+apply(df,2,IQR,na.rm = TRUE)
+
+```
+
+
+Focussing on 2010
+
+```{r}
+
+summary(X2010)
+
+sd(X2010,na.rm = TRUE)
+
+IQR(X2010,na.rm = TRUE)
+
+```
+
+We can use the pipe operator `%>%` together with other operations to transform a data frame.
+
+
+```{r}
+
+df_spread = df %>% 
+  summarize(std_dev = sd(X2010,na.rm = TRUE), iqr = IQR(X2010,na.rm = TRUE))
+
+df_spread
+```
+
+
+
+### **Question 5.3**. One way to define outliers are as points that that are more than 1.5 $\times$ IQR above the third quartile or below the first quartile. Does the CO$_2$ data set from 2010 contain outliers? If so, which countries are outliers?
+
+```{r}
+
+lower_bound = quantile(X2010,.25,na.rm = TRUE,names = FALSE) - 1.5*IQR(X2010,na.rm = TRUE)
+upper_bound = quantile(X2010,.75,na.rm = TRUE,names = FALSE) + 1.5*IQR(X2010,na.rm = TRUE)
+
+print(c(lower_bound,upper_bound))
+```
+
+Note that the lower bound is negative. Since the values of the CO$_2$ emission are all positive, we know that we won't have any outliers on the low end.
+
+Look at the histogram to if any values are beyond the upper bound
+
+```{r}
+
+ggplot(df, aes(x = X2010)) + 
+  geom_histogram(boundary = 0) + 
+  xlab("CO_2 Emissions (metric tons/person)") + 
+  theme_bw()
+
+```
+
+
+
+Find the values beyond the upper bound using the `filter` function
+
+
+
+```{r}
+
+df2 = df %>% filter(X2010 > upper_bound) 
+
+df2[,c("Country.Name","X2010")]
+
+```
+
+
+Can also use logical indexing
+
+```{r}
+
+df_upper = na.omit(data.frame("Country" = Country.Name[X2010 > upper_bound], "CO2" = X2010[X2010 > upper_bound]))
+
+df_upper
+
+```
+
+
+We have 13 outliers, all of which emit the most CO$_2$. 
+
+Another way to describe where a point falls in a distribution is using the z-score. The z-score of a value $x$ is defined as $\displaystyle z = \frac{x - \bar{x}}{s}$.
+
+### **Question 5.4**. What does it tell you about where $x$ lies in the distribution if its z-score is positive or negative?
+
+If the z-score is positive, then $x$ is greater than the mean.
+
+If the z-score is negative, then $x$ is less than the mean.
+
+### **Question 5.5**. For a distribution that follows the bell-shaped Normal curve, we have a 68 − 95 − 99.7% rule that says that 68% of the distribution will be within 1 standard deviation of the mean, 95% of the distribution will be within 2 standard deviations of the mean, and 99.7% of the distribution will be within 3 standard deviations of the mean. If we try this rule with the CO$_2$ emission data in 2010 to find the middle 95% of the data, do we get reasonable results?
+
+
+```{r}
+
+U = mean(X2010,na.rm = TRUE) + 2*sd(X2010,na.rm = TRUE)
+
+L = mean(X2010,na.rm = TRUE) - 2*sd(X2010,na.rm = TRUE)
+
+print(c(L,U))
+
+```
+
+From above we know that $\bar{x} = 4.92$ and $s$ = 6.28. So, a Normal distribution with this mean and standard deviation would have 95% of its values between 
+
+$\bar{x} - 2s = -7.65$
+
+and 
+
+$\bar{x} + 2s = 17.49$
+
+This is not particularly reasonable here because we know that CO$_2$ emissions are not negative. We also know from our histogram that the distribution is skewed, not symmetric like the Normal bell curve.
+
+## 6. Graphing the distribution part 2
+
+Another useful graph for numerical variables is the boxplot. The boxplot is a graph of the 5-number summary. A standard boxplot has a box that extends from the first quartile to the third quartile, with a line in the middle for the median. Lines are drawn from the first quartile to the minumum value and from the third quartile to the maximum value.
+
+### **Question 6.1**. Create a boxplot of the CO$_2$ emissions in 2010 using the boxplot() function.
+
+```{r}
+
+boxplot(X2010, ylab = "CO_2 Emissions (metric tons/person)")
+
+```
+
+We can also make boxplots with ``ggplot2``
+
+```{r}
+
+ggplot(data = df,mapping = aes(y = X2010)) + 
+  geom_boxplot() + 
+  ylab("CO_2 Emissions (metric tons/person)") + 
+  theme_bw()
+
+```
+
+
+### **Question 6.2**. Compare the boxplot and histogram. Do they provide the same picture of the distribution? Does one provide more detail than the other?
+
+The boxplot and the histogram provide similar pictures, but the boxplot is very limited compared to the histogram.
+
+It is easier to see the skewness of the distribution in the histogram.
+
+Bimodal or multimodal distributions are not easily detected using the boxplot.
+
+Boxplots are useful for make a simple comparison of many distributions, but we can create similar graphs that provide more information. An example is a violin plot.
+
+### **Question 6.3**. Add jittered points on top of the boxplot.
+
+
+```{r}
+
+ggplot(data = df,mapping = aes(x = 0, y = X2010)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(position=position_jitter(0.1), cex=1, alpha = 0.5, color = 'blue') +
+  ylab("CO_2 Emissions (metric tons/person)") + 
+  theme_bw()
+
+```
+
+## 7. Compare the CO$_2$ distributions in 1960 and 2010.
+
+
+### Question 7.1. Make comparative boxplots of the CO$_2$ emission distributions in 1960 and 2010. Discuss the differences in the distributions.
+
+
+```{r}
+
+df_tidy = df %>% 
+  pivot_longer(names_to = "year", 
+               values_to = "CO2", 
+               cols = -c(Country.Name,Country.Code,Indicator.Name,Indicator.Code))
+
+head(df_tidy)
+```
+
+Make comparative boxplots of the CO$_2$ distributions for all years in the data set.
+
+```{r}
+
+ggplot(data = df_tidy, mapping = aes(x = year, y = CO2)) + geom_boxplot() + theme_bw() + labs(x = "year",y = "CO_2 Emissions (metric tons/person)")
+
+```
+
+Make a smaller data frame with only the years 1960 and 2010.
+
+
+```{r}
+
+df_tidy_small = df_tidy %>% filter(year == "X1960" | year == "X2010")
+
+head(df_tidy_small)
+
+```
+
+
+Make comparative boxplots of the CO$_2$ distributions in 1960 and 2010.
+
+```{r}
+
+ggplot(data = df_tidy_small, mapping = aes(x = year, y = CO2))  +
+  geom_boxplot(outlier.shape = NA) + theme_bw() +
+  geom_jitter(position=position_jitter(0.1), cex=1, alpha = 0.5, color = 'blue') +
+  xlab("Year") + ylab("CO_2 Emissions (metric tons/person)")
+
+
+```
+
+CO$_2$ emissions increased from 1960 to 2010. There are many more countries with high emissions per person. This is important because populations have increased too, leading to much greater CO$_2$ emissions overall.
+
+
