@@ -1,0 +1,296 @@
+---
+title: "San Diego's Traffic Stop Analysis"
+output: html_document
+author: Khanh Ngo, Andrew Koken, Hsiang-Hung, Matthew Powell
+---
+
+
+## Introduction
+
+Racial profiling is a major social problem. On May 25th, many Americans’ attention was focused on the murder of George Floyd, who died while being restrained by a police officer. Floyd's death has led to the “defund the police” movement by protesters and activists across the country.
+
+In this project, we focus on racial profiling in terms of traffic stops, which is one of the most common interactions between the police and the public [2]. 
+
+It is statistically proven that African American, Hispanic and Latino American drivers, compared to white drivers, experience a disproportionate number of police stops [1]. Nevertheless, these data have to be carefully examined to conclude that racial profiling occurs in policing. Hence, for this project, the police traffic stops by driver races will undergo several tests, in order to determine whether racial bias might come into play in stop decisions.
+
+Accessing the racial bias in police stop decisions only gives a partial picture of what is going on right now in police practices. However, it could suggest many signs of a broader problem between the police and the people of color community.
+
+## Methods
+
+We used the following libraries.
+
+```{r warning=FALSE}
+# tidyverse
+library(tidyverse)
+# ggplot2
+library(ggplot2)
+# lubridate
+library(lubridate)
+# suncalc
+library(suncalc)
+```
+
+The data set for our analysis were retrieved from The Stanford Open Policing Project [2]. We analyzed traffic stops data from San Diego, CA from December 2013 to March 2017.
+
+```{r}
+stops = read_rds("~/my-portfolio/san-diego-traffic-stop/yg821jf8611_ca_san_diego_2020_04_01.rds")
+```
+
+Since the chosen data set only include three months of 2017, we will filtered out stops in that year.
+
+```{r}
+stops <- filter(stops, year(date) < 2017)
+```
+
+Data where subject race is not applicable will also be removed.
+
+```{r}
+stops <- filter(stops, subject_race != "NA")
+```
+
+
+
+First, we conducted a brief analysis to quantify the by-race stop counts.We also examined the time regression of the by-race stop counts during 2014 to 2016 to see if there is any difference in trends between races.
+
+In addition, a benchmark test was performed to access the by-race stop rates based on San Diego by-race population. Additional demographic data used are shown below [3].
+
+```{r}
+population <- tibble(
+  subject_race = c(
+    "asian/pacific islander", "black", "hispanic", "other", "white"
+  ),
+  num_people = c(213915, 86409, 374605, 234623, 766663)
+) %>% 
+  mutate(subject_race = as.factor(subject_race))
+```
+
+After that, an outcome test was conducted to access search outcomes. A successful search is one which uncovers contraband. Thus, we want to find the contraband recovery rate, or hit rate for each race.
+
+Lastly, the veil of darkness test was carried out. According to the veil of darkness hypothesis, during the night, police officers have greater difficulty observing the race of the drivers, hence, racial profiling is less likely to happen. For this test, we compared the race distribution of drivers stopped during daylight to the race distribution of drivers stopped after dark to see whether there is a significant difference. Since sunset times vary based on time of the year and regions, we used the following geographic coordinates for San Diego [4].
+
+```{r}
+center_lat <-32.7157
+center_lng <- 117.1611
+```
+
+## Results
+
+We begin by simply creating tables that count the number of stops made for each racial category, and also one created by counting the number of stops by described subject race. We made both to see if there were any outliers in any subcategories that we might want to look into.
+
+The number of stops as a function of subject race are given by the following table:
+
+```{r}
+# subject_race table
+stops %>% 
+  count(subject_race)
+```
+
+Our next step to analyze the data is to graph our number of stops by race over the years in our data. This can tell us if there are any noticeable differences in a particular year we might want to focus on or exclude. Once again we also made a graph using race description to see if there were any outliers.
+
+The number of stops vs. year, separated by race are given by the following graph:
+
+```{r warning=FALSE}
+# graph of traffic stops over time for each race
+stops %>% 
+  count(year = year(date), subject_race) %>% 
+  ggplot(aes(x = year, y = n, color = subject_race)) +
+  geom_point() +
+  geom_line() 
+```
+
+From our initial table and graph we did not see any particular outliers that prompted analysis. Thus, we moved on to some benchmarking.
+
+##Benchmark Test
+
+Now we begin a benchmarking test. Here we make sure we are limiting ourselves to vehicular stops.
+
+```{r}
+stops = stops %>% filter(type == "vehicular")
+```
+
+After filtering out non-vehicular stops, we also add location data which we will require later. Before we were looking at just the number of stops for each racial category, but now using our stop data we want to calculate the actual proportions of stops for each race. This proportion wil not immediately give us anything useful, as it will be skewed by the population. That will be fixed in the next section of code.
+
+```{r}
+population %>% 
+  mutate(proportion = num_people / sum(num_people))
+```
+
+Here we are determining the stop rate of each racial category and plotting it on a table. The stop rate is our proportion of stops combined with our population data, to give an actual relative amount of stops.
+
+```{r}
+# benchmark test
+stops %>% 
+  count(subject_race) %>% 
+  # combining 2 tables, subject_race & population
+  left_join(
+    population,
+    by = "subject_race"
+  ) %>% 
+  # add stop rate column
+  mutate(stop_rate = n / num_people) # calculate stop rates
+```
+
+From here we see that people categorized as black had the highest stop rate, at least double that of any other population. This is something certainly worth discussing, as well as something we can look into a bit more. We also have search rates in our data, and we can check to see if there might be any bias present there as well.
+
+In this code we then check by race the percent of people that were searched.
+
+```{r}
+stops %>% group_by(subject_race) %>% summarise(arrest_rate = mean(arrest_made))
+# stops = stops %>% na.exclude(search_conducted)
+# stops = stops %>% na.exclude(search_person)
+stops %>% 
+  group_by(subject_race) %>% 
+  summarise(
+#    search_rate = mean(search_conducted, na.rm = T), #was frisk originally does not work for this analysis
+    person_searched_rate = mean(search_person, na.rm = T) 
+  )
+```
+
+Looking at this search rate, it appears as though no particular race was searched much more than any other. The asian and black categories were slightly higher, but not enough to stand out. The next thing to analyze from here is whether these searches were productive.
+
+##Outcome Test
+
+Here we then check to see how many of these searched people actually had something to be found from a search.
+
+```{r}
+stops %>% 
+  filter(search_conducted) %>% 
+  group_by(subject_race) %>% 
+  summarize(
+    hit_rate = mean(contraband_found, na.rm = T)
+  )
+```
+
+As we can see there is no noticeable change in hit rate between races that would justify different searches. From this, no bias seems to be apparent, but there is more than can be done first. Using our location data, we can see if there are any differences when the driver's race might be more concealed, such as when it is dark out. This is called a veil of darkness test.
+
+##Veil of Darkness Test
+
+In order to conduct this test, we need figure out at what times it is dark and bright enough for the driver to be obscured. These times also vary by time of year, which also must be taken into account. These next two sections set this up and create a table of times to separate whether it is dark or not.
+
+```{r}
+#THis is using the lat and long set earlier.
+
+tz <- lutz::tz_lookup_coords(center_lat, center_lng, warn = F)
+
+# Helper function
+time_to_minute <- function(time) {
+  hour(hms(time)) * 60 + minute(hms(time))
+}
+
+# Compute sunset time for each date in our dataset
+sunset_times <- 
+  stops %>%
+  mutate(
+    lat = center_lat,
+    lon = center_lng
+  ) %>% 
+  select(date, lat, lon) %>%
+  distinct() %>%
+  getSunlightTimes(
+    data = ., 
+    keep = c("sunset", "dusk"), 
+    tz = tz
+  ) %>% 
+  mutate_at(vars("sunset", "dusk"), ~format(., "%H:%M:%S")) %>% 
+  mutate(
+    sunset_minute = time_to_minute(sunset),
+    dusk_minute = time_to_minute(dusk),
+    date = ymd(str_sub(date, 1, 10))
+  ) %>% 
+  select(date, sunset, dusk, ends_with("minute"))
+
+```
+
+
+```{r}
+
+sunset_times %>% 
+  filter(dusk == min(dusk) | dusk == max(dusk))
+```
+
+In order to simplify things we are going to limit our number of stops. In this case we are just going to compare black and white driver stops, as well as filter out any ambiguously dark time periods. This will give us a cleaner view on the probability that the driver is black.
+
+```{r}
+vod_stops <- 
+  stops %>% 
+  left_join(
+    sunset_times,
+    by = "date"
+  ) %>% 
+  mutate(
+    minute = time_to_minute(time),
+    minutes_after_dark = minute - dusk_minute,
+    is_dark = minute > dusk_minute,
+    min_dusk_minute = min(dusk_minute),
+    max_dusk_minute = max(dusk_minute),
+    is_black = subject_race == "black"
+  ) %>% 
+  filter(
+    # Filter to get only the intertwilight period
+    minute >= min_dusk_minute,
+    minute <= max_dusk_minute,
+    # Remove ambigous period between sunset and dusk
+    !(minute > sunset_minute & minute < dusk_minute),
+    # Compare only white and black drivers
+    subject_race %in% c("black", "white")
+  )
+
+
+vod_stops %>% nrow()
+```
+
+Now that we have everything set up, we can simply check to see whether the proportion of black drivers is noticeably different between times when it is dark and bright.
+
+```{r}
+suppressWarnings(
+vod_stops %>% 
+  filter(time > hm("18:30"), time < hm("18:45")) %>% 
+  group_by(is_dark) %>% 
+  summarize(prop_black = mean(is_black)))
+```
+
+So as we can see, there is a noticeable drop in the proportion of black drivers when it is dark. If no bias were present we would expect this proportion no to differ by nearly as much, indicating that there is bias present. To be safe we will also calculate our coefficients and standard error to show what that expected range would be.
+
+```{r}
+
+mod1 <- glm(
+  is_black ~ is_dark + splines::ns(minute, df = 6),
+  family = binomial,
+  data = vod_stops
+)
+
+summary(mod1)$coefficients["is_darkTRUE", c("Estimate", "Std. Error")]
+```
+
+The negative estimate means the darkness reduces the chances the driver is black, but the standard error indicates that we do not have a significant enough change in proportion to say a clear bias exists. We would need to reduce this error to know this for sure.
+
+Unfortunately we don't have district data so we cannot go any further than that.
+
+## Discussion
+
+In general, 42% of the numbers of traffic stops in San Diego were conducted on white drivers, followed by Hispanic drivers in the second place, with 117083 stops from 2014 to 2016.
+
+During 2014 to 2016, there is a common decreasing trend in traffic stops among all races. However, the overall ranking was not changed.
+
+Black people, who only made up 5% of San Diego’s population, have the highest tendency to be stopped by the police. Based on our analysis, approximate one out of two black drivers will get pulled over by the police, that is significantly higher than any other races’ stop rates.
+
+In addition, from the outcome test, We see that hit rates are slightly lower for black and Hispanic drivers than for white drivers. However, this does not tell whether racial bias might come into play here since successful search is not equivalent to successful stop. Therefore, other possible interference should be considered in the future analysis.
+
+From our veil of darkness test, we see that when it is dark, the likelihood of the driver being black is reduced. This means that a visible daytime driver is more likely to be black. However, our standard error shows that we cannot be sure about a bias from this test.
+
+It also would have been helpful to see if the proportions of stops changed in different districts of San Diego, however district data was not recorded so that was not possible. 
+
+Our veil of darkness test was also limited in that the total number of stops compared was reduced to 481. In order to better perform this test a wider scope would be necessary, although when using a wider scope it was more difficult to discern the data. 
+
+Overall we believe that the data indicates that a bias in traffic stops does exist against black people in San Diego. The proportion of stops was so high that even with the uncertain outcome of the veil of darkness test that unless district data could paint a different picture, the difference cannot be ignored.
+
+## References
+
+[1] C. R. Epp, S. Maynard-Moody, and D. P. Haider-Markel, Pulled over: how police stops define race and citizenship. Chicago: The University of Chicago Press, 2014.
+
+[2] E. Pierson, C. Simoiu, J. Overgoor, S. Corbett-Davies, D. Jenson, A. Shoemaker, V. Ramachandran, P. Barghouty, C. Phillips, R. Shroff, and S. Goel. “A large-scale analysis of racial disparities in police stops across the United States”. Nature Human Behaviour, Vol. 4, 2020.
+
+[3] “Population,” The City of San Diego. [Online]. Available: https://www.sandiego.gov/economic-development/sandiego/population.
+
+[4] “San Diego, CA, USA,” Lat Long Finder. [Online]. Available: https://www.latlong.net/place/san-diego-ca-usa-7073.html.
+
